@@ -5,9 +5,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
 
 # Load variables from .env file
 dotenv.load_dotenv()
@@ -22,16 +19,15 @@ class RAGService:
             embedding_function=self.embeddings
         )
         
-        # 2. Initialize the LLM using Requesty API
-        # Ensure your Requesty API key is correctly set in the .env file
-        api_key = os.getenv("REQUESTY_API_KEY")
+        # 2. Initialize the LLM using OpenRouter API (FREE TIER)
+        api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
-             raise ValueError("REQUESTY_API_KEY is missing from .env file.")
+             raise ValueError("OPENROUTER_API_KEY is missing from .env file.")
 
         self.llm = ChatOpenAI(
             openai_api_key=api_key,
-            openai_api_base="https://router.requesty.ai/v1",
-            model_name="meta-llama/llama-3-8b-instruct", 
+            openai_api_base="https://openrouter.ai/api/v1",
+            model_name="openrouter/free",
             max_tokens=512,
             temperature=0.3 
         )
@@ -48,30 +44,30 @@ class RAGService:
             print(f"Error vectorizing document {document_id}: {e}")
 
     def ask_question(self, question: str) -> str:
-        """Finds relevant document chunks and asks the LLM to answer."""
+        """Finds relevant chunks and asks the LLM manually."""
         try:
-            # Create standard RAG Prompt
-            system_prompt = (
-                "You are an intelligent assistant. Use the following pieces of retrieved context "
-                "to answer the question accurately. If you don't know the answer based on the context, "
-                "say that you don't know. Answer in the same language as the question.\n\n"
-                "Context: {context}"
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                ("human", "{input}"),
-            ])
-
-            # Retrieve top 3 most relevant chunks
-            retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
+            # 1. جستجوی مستقیم مرتبط‌ترین متن‌ها در دیتابیس برداری
+            docs = self.vectorstore.similarity_search(question, k=3)
             
-            # Create chains
-            qa_chain = create_stuff_documents_chain(self.llm, prompt)
-            rag_chain = create_retrieval_chain(retriever, qa_chain)
+            # چسباندن متن‌های پیدا شده به هم
+            context = "\n\n".join([doc.page_content for doc in docs])
 
-            # Generate Answer
-            response = rag_chain.invoke({"input": question})
-            return response["answer"]
+            # 2. ساخت قالب سوال (Prompt) به صورت کاملاً دستی
+            prompt = f"""You are an intelligent assistant. Use the following pieces of retrieved context to answer the question accurately. If you don't know the answer based on the context, say that you don't know.
+
+Context:
+{context}
+
+Question:
+{question}
+
+Answer:"""
+
+            # 3. ارسال مستقیم پرامپت به مدل زبانی
+            response = self.llm.invoke(prompt)
+            
+            # برگرداندن متن جواب
+            return response.content
             
         except Exception as e:
             print(f"LLM Generation Error: {e}")
