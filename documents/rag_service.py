@@ -26,7 +26,7 @@ class RAGService:
 
         self.llm = ChatOpenAI(
             openai_api_key=api_key,
-            openai_api_base="https://openrouter.ai/api/v1",
+            base_url="https://openrouter.ai/api/v1", # این پارامتر آپدیت شد
             model_name="openrouter/free",
             max_tokens=512,
             temperature=0.3 
@@ -37,20 +37,25 @@ class RAGService:
         try:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
             chunks = text_splitter.split_text(text)
-            metadatas = [{"document_id": document_id} for _ in chunks]
+            
+            # مشکل دقیقاً اینجا بود! عدد باید به استرینگ تبدیل شود
+            metadatas = [{"document_id": str(document_id)} for _ in chunks]
+            
             self.vectorstore.add_texts(texts=chunks, metadatas=metadatas)
             print(f"Successfully vectorized document ID: {document_id}")
         except Exception as e:
             print(f"Error vectorizing document {document_id}: {e}")
 
     def ask_question(self, question: str) -> str:
-        """Finds relevant chunks and asks the LLM manually."""
+        """Finds relevant chunks and asks the LLM manually using standard invoke."""
         try:
+            # Retrieve relevant context from ChromaDB
             docs = self.vectorstore.similarity_search(question, k=3)
-            
             context = "\n\n".join([doc.page_content for doc in docs])
 
-            prompt = f"""You are an intelligent assistant. Use the following pieces of retrieved context to answer the question accurately. If you don't know the answer based on the context, say that you don't know.
+            # Prepare the prompt structure
+            prompt = f"""You are an expert analyst. Answer based ONLY on the provided context. 
+If the answer is not in the context, say 'I don't know'.
 
 Context:
 {context}
@@ -60,10 +65,10 @@ Question:
 
 Answer:"""
 
+            # Use the established llm instance's invoke method
             response = self.llm.invoke(prompt)
             
             return response.content
-            
         except Exception as e:
             print(f"LLM Generation Error: {e}")
-            return f"An error occurred: {e}"
+            return f"An error occurred: {str(e)}"

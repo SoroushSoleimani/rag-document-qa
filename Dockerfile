@@ -10,8 +10,9 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Copy the requirements file and install dependencies
+# Copy the requirements file and install dependencies using a reliable mirror
+# Copy the requirements file and install dependencies using Tsinghua mirror
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 # Copy the entire project source code into the container
 COPY . /app/
