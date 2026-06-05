@@ -6,22 +6,31 @@ class Document(models.Model):
     title = models.CharField(max_length=255, verbose_name="Document Title")
     # Support for docx files
     file = models.FileField(upload_to='docs/', verbose_name="Document File")
-    # Store the full text of each document[cite: 1]
+    # Store the full text of each document
     full_text = models.TextField(blank=True, null=True, verbose_name="Extracted Text")
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Upload Date")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Update Date")
 
     def save(self, *args, **kwargs):
-        # Save the instance first so the file is stored and its path is available
+        # Save the instance first so the file is stored
         super().save(*args, **kwargs)
         
         # If the file is a docx and no text has been extracted yet
         if self.file and self.file.name.endswith('.docx') and not self.full_text:
             extracted_text = extract_text_from_docx(self.file.path)
+            
             if extracted_text:
                 self.full_text = extracted_text
-                # Update the database without calling save() again to avoid recursion
-                Document.objects.filter(pk=self.pk).update(full_text=self.full_text)
+                # Update the database safely without Pylance warning
+                self.__class__.objects.filter(pk=self.pk).update(full_text=self.full_text)
+                
+                # --- RAG INTEGRATION: Send text to Vector DB ---
+                try:
+                    from .rag_service import RAGService
+                    rag = RAGService()
+                    rag.process_and_store_document(self.pk, self.full_text)
+                except Exception as e:
+                    print(f"Failed to process RAG pipeline for document {self.pk}: {e}")
 
     def __str__(self):
         return self.title
@@ -30,11 +39,24 @@ class Document(models.Model):
         verbose_name = "Document"
         verbose_name_plural = "Documents"
 
-# Store the history of questions and answers[cite: 1]
 class QAHistory(models.Model):
     question = models.TextField(verbose_name="User Question")
-    answer = models.TextField(verbose_name="System Answer")
+    # Make answer blank/null so the admin doesn't force us to type it
+    answer = models.TextField(blank=True, null=True, verbose_name="System Answer")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date Asked")
+
+    def save(self, *args, **kwargs):
+        # If this is a new question and doesn't have an answer yet
+        if not self.pk and not self.answer:
+            try:
+                from .rag_service import RAGService
+                rag = RAGService()
+                # Generate the answer using our AI service
+                self.answer = rag.ask_question(self.question)
+            except Exception as e:
+                self.answer = f"Error generating answer: {e}"
+                
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Question: {self.question[:50]}..."

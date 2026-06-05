@@ -12,4 +12,5 @@ class DocumentAdmin(admin.ModelAdmin):
 class QAHistoryAdmin(admin.ModelAdmin):
     list_display = ('question', 'created_at')
     search_fields = ('question', 'answer')
-    readonly_fields = ('question', 'answer', 'created_at')
+    # Removed 'question' from readonly_fields so admin can type the question
+    readonly_fields = ('answer', 'created_at')
