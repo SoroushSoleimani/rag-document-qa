@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    # Start the Django development server on port 8000
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: .
+    # Run the Celery worker for background task processing
+    command: celery -A core worker --loglevel=info -P solo
+    volumes:
+      - .:/app
+    depends_on:
+      - web
