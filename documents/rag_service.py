@@ -46,13 +46,10 @@ class RAGService:
     def ask_question(self, question: str) -> str:
         """Finds relevant chunks and asks the LLM manually."""
         try:
-            # 1. جستجوی مستقیم مرتبط‌ترین متن‌ها در دیتابیس برداری
             docs = self.vectorstore.similarity_search(question, k=3)
             
-            # چسباندن متن‌های پیدا شده به هم
             context = "\n\n".join([doc.page_content for doc in docs])
 
-            # 2. ساخت قالب سوال (Prompt) به صورت کاملاً دستی
             prompt = f"""You are an intelligent assistant. Use the following pieces of retrieved context to answer the question accurately. If you don't know the answer based on the context, say that you don't know.
 
 Context:
@@ -63,10 +60,8 @@ Question:
 
 Answer:"""
 
-            # 3. ارسال مستقیم پرامپت به مدل زبانی
             response = self.llm.invoke(prompt)
             
-            # برگرداندن متن جواب
             return response.content
             
         except Exception as e:
