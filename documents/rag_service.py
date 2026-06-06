@@ -47,13 +47,32 @@ class RAGService:
             print(f"Error vectorizing document {document_id}: {e}")
 
     def ask_question(self, question: str) -> str:
-        """Finds relevant chunks and asks the LLM manually using standard invoke."""
+        """
+        Finds relevant chunks, asks the LLM, and appends the source citations 
+        to ensure traceability and reliability of the answer.
+        """
         try:
-            # Retrieve relevant context from ChromaDB
+            # 1. Retrieve relevant context from ChromaDB
             docs = self.vectorstore.similarity_search(question, k=3)
+            
+            # If no documents are found, return early
+            if not docs:
+                return "No relevant context found in the uploaded documents."
+
             context = "\n\n".join([doc.page_content for doc in docs])
 
-            # Prepare the prompt structure
+            # 2. Extract source metadata for citations programmatically
+            citations = []
+            for i, doc in enumerate(docs):
+                # Extract a short snippet to show exactly which paragraph was used
+                snippet = doc.page_content[:60].replace('\n', ' ') + "..."
+                
+                # Append to our citations list
+                citations.append(f"[{i+1}] Context Snippet: '{snippet}'")
+            
+            citations_text = "\n".join(citations)
+
+            # 3. Prepare the prompt structure for the LLM
             prompt = f"""You are an expert analyst. Answer based ONLY on the provided context. 
 If the answer is not in the context, say 'I don't know'.
 
@@ -65,10 +84,15 @@ Question:
 
 Answer:"""
 
-            # Use the established llm instance's invoke method
+            # 4. Invoke the LLM
             response = self.llm.invoke(prompt)
+            answer = response.content
             
-            return response.content
+            # 5. Combine the AI's answer with the exact extracted sources
+            final_output = f"{answer}\n\n\n Source Tracking:\n{citations_text}"
+            
+            return final_output
+
         except Exception as e:
             print(f"LLM Generation Error: {e}")
             return f"An error occurred: {str(e)}"
