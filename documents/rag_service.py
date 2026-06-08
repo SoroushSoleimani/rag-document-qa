@@ -26,8 +26,8 @@ class RAGService:
 
         self.llm = ChatOpenAI(
             openai_api_key=api_key,
-            base_url="https://openrouter.ai/api/v1", # این پارامتر آپدیت شد
-            model_name="openrouter/free",
+            base_url="https://openrouter.ai/api/v1",
+            model_name="openai/gpt-oss-120b:free",
             max_tokens=512,
             temperature=0.3 
         )
@@ -38,7 +38,6 @@ class RAGService:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
             chunks = text_splitter.split_text(text)
             
-            # مشکل دقیقاً اینجا بود! عدد باید به استرینگ تبدیل شود
             metadatas = [{"document_id": str(document_id)} for _ in chunks]
             
             self.vectorstore.add_texts(texts=chunks, metadatas=metadatas)
@@ -48,7 +47,6 @@ class RAGService:
 
     import os
 
-    # ... (بقیه کدهای بالای فایل دست نخورده باقی بماند) ...
 
     def ask_question(self, question: str) -> str:
         """
@@ -57,7 +55,7 @@ class RAGService:
         """
         # 0. Fast-fail validation: Check for API key before processing
         if not os.getenv("OPENROUTER_API_KEY"):
-            return "⚠️ **Configuration Error:** OpenRouter API key is missing. Please check your environment variables."
+            return " **Configuration Error:** OpenRouter API key is missing. Please check your environment variables."
 
         try:
             # 1. Retrieve relevant context from ChromaDB
