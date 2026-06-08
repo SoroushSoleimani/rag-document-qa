@@ -4,7 +4,6 @@ import os
 from django.db import models
 
 class Document(models.Model):
-    # ۱. تعریف وضعیت‌های مختلف
     STATUS_CHOICES = (
         ('pending', 'Pending'),
         ('processing', 'Processing'),
@@ -20,7 +19,6 @@ class Document(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Upload Date")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Update Date")
     
-    # ۲. اضافه کردن فیلد وضعیت به دیتابیس
     status = models.CharField(
         max_length=20, 
         choices=STATUS_CHOICES, 
@@ -35,7 +33,6 @@ class Document(models.Model):
         # If the file is a docx and no text has been extracted yet
         if self.file and self.file.name.endswith('.docx') and not self.full_text:
             
-            # تغییر وضعیت به "در حال پردازش"
             self.__class__.objects.filter(pk=self.pk).update(status='processing')
             
             extracted_text = extract_text_from_docx(self.file.path)
@@ -51,12 +48,10 @@ class Document(models.Model):
                     rag = RAGService()
                     rag.process_and_store_document(self.pk, self.full_text)
                     
-                    # تغییر وضعیت به "تکمیل شده" پس از موفقیت
                     self.__class__.objects.filter(pk=self.pk).update(status='completed')
                 except Exception as e:
                     print(f"Failed to process RAG pipeline for document {self.pk}: {e}")
                     
-                    # تغییر وضعیت به "خطا" در صورت بروز مشکل
                     self.__class__.objects.filter(pk=self.pk).update(status='failed')
 
     def __str__(self):
