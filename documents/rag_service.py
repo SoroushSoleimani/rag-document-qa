@@ -46,28 +46,33 @@ class RAGService:
         except Exception as e:
             print(f"Error vectorizing document {document_id}: {e}")
 
+    import os
+
+    # ... (بقیه کدهای بالای فایل دست نخورده باقی بماند) ...
+
     def ask_question(self, question: str) -> str:
         """
-        Finds relevant chunks, asks the LLM, and appends the source citations 
-        to ensure traceability and reliability of the answer.
+        Finds relevant chunks, asks the LLM, and appends the source citations.
+        Includes graceful error handling for missing API keys or network issues.
         """
+        # 0. Fast-fail validation: Check for API key before processing
+        if not os.getenv("OPENROUTER_API_KEY"):
+            return "⚠️ **Configuration Error:** OpenRouter API key is missing. Please check your environment variables."
+
         try:
             # 1. Retrieve relevant context from ChromaDB
             docs = self.vectorstore.similarity_search(question, k=3)
             
-            # If no documents are found, return early
+            # If no documents are found, return a polite warning
             if not docs:
-                return "No relevant context found in the uploaded documents."
+                return " **Not Found:** No relevant context could be found in the uploaded documents to answer your question. Please ensure a document is successfully processed first."
 
             context = "\n\n".join([doc.page_content for doc in docs])
 
             # 2. Extract source metadata for citations programmatically
             citations = []
             for i, doc in enumerate(docs):
-                # Extract a short snippet to show exactly which paragraph was used
                 snippet = doc.page_content[:60].replace('\n', ' ') + "..."
-                
-                # Append to our citations list
                 citations.append(f"[{i+1}] Context Snippet: '{snippet}'")
             
             citations_text = "\n".join(citations)
@@ -89,10 +94,18 @@ Answer:"""
             answer = response.content
             
             # 5. Combine the AI's answer with the exact extracted sources
-            final_output = f"{answer}\n\n\n Source Tracking:\n{citations_text}"
+            final_output = f"{answer}\n\n---\n** Source Tracking:**\n{citations_text}"
             
             return final_output
 
         except Exception as e:
-            print(f"LLM Generation Error: {e}")
-            return f"An error occurred: {str(e)}"
+            error_msg = str(e)
+            print(f"LLM Generation Error: {error_msg}")
+            
+            # Provide user-friendly error messages based on common API exceptions
+            if "authentication" in error_msg.lower() or "401" in error_msg:
+                return " **Authentication Error:** Failed to authenticate with the AI provider. Your API key might be invalid or expired."
+            elif "rate limit" in error_msg.lower() or "429" in error_msg:
+                return " **Rate Limit Exceeded:** The AI provider is currently busy. Please wait a moment and try saving again."
+            else:
+                return f" **System Error:** An unexpected error occurred while communicating with the AI model.\n\n*Technical Details: {error_msg}*"
