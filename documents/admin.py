@@ -7,6 +7,10 @@ class DocumentAdmin(admin.ModelAdmin):
     search_fields = ('title', 'full_text')
     # Make the full_text field read-only as it is populated by the system
     readonly_fields = ('full_text', 'uploaded_at', 'updated_at')
+    list_display = ('title', 'uploaded_at', 'status')
+    
+    # Make status read-only so users can't manually change it
+    readonly_fields = ('status',)
 
 @admin.register(QAHistory)
 class QAHistoryAdmin(admin.ModelAdmin):
