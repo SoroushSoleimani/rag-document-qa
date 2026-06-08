@@ -76,7 +76,9 @@ class RAGService:
             citations_text = "\n".join(citations)
 
             # 3. Prepare the prompt structure for the LLM
-            prompt = f"""You are an expert analyst. Answer based ONLY on the provided context. 
+            # 3. Prepare the prompt structure for the LLM
+            prompt = f"""You are an expert analyst. Answer the question based ONLY on the provided context. 
+Please provide a complete, well-structured sentence. If there is additional relevant explanation in the context, include it briefly.
 If the answer is not in the context, say 'I don't know'.
 
 Context:
