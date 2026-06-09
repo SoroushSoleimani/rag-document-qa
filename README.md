@@ -122,14 +122,10 @@ The system enforces software stability metrics via automated test structures. To
 
 ```bash
 docker compose exec web python manage.py test documents
-```
 
-```text
 Creating test database for alias 'default'...
 System check identified no issues (0 silenced).
-```
-```text
-----------------------------------------------------------------------
+
 Ran 2 tests in 0.004s
 ```
 
