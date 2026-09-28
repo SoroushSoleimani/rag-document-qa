@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enterprise RAG Document QA System</title>
+<meta name="description" content="A production-ready, distributed Retrieval-Augmented Generation system built with Django, Celery, Redis, ChromaDB and OpenRouter.">
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-alt: #111833;
+    --card: #151d3b;
+    --border: #253059;
+    --text: #e6e9f5;
+    --muted: #9aa4c7;
+    --accent: #6c8cff;
+    --accent2: #38d6b0;
+    --code-bg: #0a0f22;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  [data-theme="light"] {
+    --bg: #f6f8fd;
+    --bg-alt: #ffffff;
+    --card: #ffffff;
+    --border: #dfe4f2;
+    --text: #172038;
+    --muted: #5a6685;
+    --accent: #3f5fe0;
+    --accent2: #0f9d7e;
+    --code-bg: #f0f3fb;
+    --shadow: 0 10px 30px rgba(30,40,90,.10);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* Nav */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .container { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+  .brand { font-weight: 700; letter-spacing: .2px; color: var(--text); display: flex; align-items: center; gap: 10px; }
+  .brand .dot { width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .nav-links { display: flex; gap: 22px; align-items: center; }
+  .nav-links a { color: var(--muted); font-size: 14.5px; }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  .theme-btn {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 14px;
+  }
+  @media (max-width: 760px) { .nav-links a.hide-m { display: none; } }
+
+  /* Hero */
+  .hero { padding: 90px 0 70px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -40% -10% auto -10%; height: 90%;
+    background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 65%);
+    pointer-events: none;
+  }
+  .badge {
+    display: inline-block; padding: 5px 14px; border-radius: 999px; font-size: 13px;
+    border: 1px solid var(--border); background: var(--card); color: var(--muted); margin-bottom: 22px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 60px); line-height: 1.1; margin: 0 0 20px; position: relative;
+  }
+  .grad {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.lead { max-width: 720px; margin: 0 auto 32px; color: var(--muted); font-size: 18.5px; position: relative; }
+  .btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; position: relative; }
+  .btn {
+    padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 15px;
+    border: 1px solid var(--border); background: var(--card); color: var(--text); display: inline-block;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); color: #06101f; border: none; }
+
+  /* Sections */
+  section { padding: 70px 0; }
+  section.alt { background: var(--bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  h2 { font-size: 32px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 40px; max-width: 700px; }
+
+  .grid { display: grid; gap: 20px; }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 10px 0 8px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .icon { font-size: 28px; }
+
+  /* Pipeline */
+  .steps { counter-reset: s; display: grid; gap: 16px; }
+  .step {
+    display: flex; gap: 18px; align-items: flex-start;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 22px;
+  }
+  .step::before {
+    counter-increment: s; content: counter(s);
+    flex: 0 0 38px; height: 38px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; color: #06101f;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+  }
+  .step h4 { margin: 0 0 4px; font-size: 16.5px; }
+  .step p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  /* Diagram */
+  .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; margin-top: 10px; }
+  .node {
+    padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); font-size: 14px; font-weight: 600;
+  }
+  .arrow { color: var(--accent); font-weight: 700; }
+
+  /* Formula */
+  .formula {
+    text-align: center; font-family: "Cambria Math", "Times New Roman", serif;
+    font-size: 22px; padding: 22px; border-radius: 12px; background: var(--code-bg);
+    border: 1px dashed var(--border); margin: 24px 0;
+  }
+
+  /* Code */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; overflow-x: auto; font-size: 14px; line-height: 1.55; position: relative;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .copy {
+    position: absolute; top: 8px; right: 8px; font-size: 12px; padding: 4px 10px;
+    background: var(--card); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+  }
+  .copy:hover { color: var(--text); }
+  .pre-wrap { position: relative; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); min-width: 560px; }
+  th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14.5px; }
+  th { background: var(--bg-alt); color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; }
+  tr:last-child td { border-bottom: none; }
+  .method {
+    font-family: ui-monospace, monospace; font-size: 12.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px;
+  }
+  .m-get { background: rgba(56,214,176,.15); color: var(--accent2); }
+  .m-post { background: rgba(108,140,255,.18); color: var(--accent); }
+  td code { background: var(--code-bg); padding: 2px 7px; border-radius: 5px; font-size: 13px; }
+
+  /* Tech chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; }
+  .chip {
+    padding: 10px 18px; border-radius: 999px; background: var(--card);
+    border: 1px solid var(--border); font-size: 14.5px;
+  }
+  .chip b { color: var(--accent); }
+
+  /* Tree */
+  .tree { font-family: ui-monospace, monospace; font-size: 13.5px; }
+  .tree .c { color: var(--muted); }
+
+  .notes li { margin-bottom: 12px; color: var(--muted); }
+  .notes li b { color: var(--text); }
+
+  footer { padding: 40px 0; text-align: center; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a class="brand" href="#top"><span class="dot"></span>RAG Document QA</a>
+    <div class="nav-links">
+      <a class="hide-m" href="#architecture">Architecture</a>
+      <a class="hide-m" href="#features">Features</a>
+      <a class="hide-m" href="#install">Install</a>
+      <a class="hide-m" href="#api">API</a>
+      <a href="https://github.com/YOUR_USERNAME/rag-document-qa" target="_blank" rel="noopener">GitHub ↗</a>
+      <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">🌙</button>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="container">
+    <span class="badge">Django 5 · Celery · Redis · ChromaDB · LangChain</span>
+    <h1>Enterprise <span class="grad">RAG Document QA</span> System</h1>
+    <p class="lead">
+      A production-ready, distributed Retrieval-Augmented Generation system. Upload documents,
+      vectorize them asynchronously, and get context-bounded, cited answers powered by
+      GPT-OSS-120B via OpenRouter.
+    </p>
+    <div class="btns">
+      <a class="btn primary" href="#install">Get Started</a>
+      <a class="btn" href="https://github.com/YOUR_USERNAME/rag-document-qa" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<section id="architecture" class="alt">
+  <div class="container">
+    <h2>Architecture Overview</h2>
+    <p class="sub">The web runtime is fully separated from heavy computation (document parsing and embedding generation), avoiding synchronous monolithic processing.</p>
+
+    <div class="flow" style="margin-bottom:36px">
+      <span class="node">📄 Upload .docx</span><span class="arrow">→</span>
+      <span class="node">Django</span><span class="arrow">→</span>
+      <span class="node">Redis Broker</span><span class="arrow">→</span>
+      <span class="node">Celery Worker</span><span class="arrow">→</span>
+      <span class="node">Chunking</span><span class="arrow">→</span>
+      <span class="node">ChromaDB</span>
+    </div>
+
+    <h3 style="margin-bottom:16px">Ingestion &amp; Vectorization Flow</h3>
+    <div class="steps">
+      <div class="step"><div><h4>Document Ingest</h4><p>A user uploads a <code>.docx</code> file through the Django admin. The record is committed immediately with a <code>pending</code> state.</p></div></div>
+      <div class="step"><div><h4>Task Brokerage</h4><p>Django dispatches a background task payload to the Redis message broker.</p></div></div>
+      <div class="step"><div><h4>Background Worker Execution</h4><p>A Celery worker consumes the task, moves the document to <code>processing</code>, and runs the extraction pipeline.</p></div></div>
+      <div class="step"><div><h4>Text Chunking</h4><p>Raw text is split with <code>RecursiveCharacterTextSplitter</code> using tuned chunk size and overlap to preserve semantic boundaries.</p></div></div>
+      <div class="step"><div><h4>Vector Ingestion</h4><p>Chunks are embedded into high-dimensional vectors and persisted into ChromaDB.</p></div></div>
+      <div class="step"><div><h4>State Resolution</h4><p>After successful storage, the document state becomes <code>completed</code>.</p></div></div>
+    </div>
+
+    <h3 style="margin:44px 0 10px">Contextual Query Pipeline</h3>
+    <p class="sub" style="margin-bottom:8px">The question is converted to a query vector, then ChromaDB returns the top <i>k</i> closest chunks by cosine similarity. These are injected into a deterministic prompt and sent to <code>openai/gpt-oss-120b:free</code>, which is held to strict context-bounding to reduce hallucinations.</p>
+    <div class="formula">Similarity = cos(θ) = (A · B) / (‖A‖ ‖B‖)</div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <h2>Core Technical Features</h2>
+    <p class="sub">Built for reliability, transparency and scale.</p>
+    <div class="grid g4">
+      <div class="card"><div class="icon">⚡</div><h3>Asynchronous Task Queuing</h3><p>Tokenization and vector DB sync are decoupled from the HTTP cycle using Celery and Redis.</p></div>
+      <div class="card"><div class="icon">🧭</div><h3>Deterministic Status Tracking</h3><p>Explicit finite states — <code>pending</code>, <code>processing</code>, <code>completed</code> — for full lifecycle visibility.</p></div>
+      <div class="card"><div class="icon">📚</div><h3>Source Tracking &amp; Citations</h3><p>Every answer is appended with citations that highlight the exact context snippets retrieved.</p></div>
+      <div class="card"><div class="icon">🛡️</div><h3>Graceful Fallbacks</h3><p>Handles auth faults, rate limits and network timeouts with friendly logs instead of crashes.</p></div>
+      <div class="card"><div class="icon">✅</div><h3>Automated Unit Tests</h3><p>Covers model initialization, default states and string representation on isolated test databases.</p></div>
+      <div class="card"><div class="icon">🐳</div><h3>Fully Containerized</h3><p>Web, worker and Redis launch together with a single Docker Compose command.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="stack">
+  <div class="container">
+    <h2>System Tech Stack</h2>
+    <p class="sub">Battle-tested components working together.</p>
+    <div class="chips">
+      <span class="chip"><b>Web:</b> Django 5.x</span>
+      <span class="chip"><b>API:</b> Django REST Framework</span>
+      <span class="chip"><b>Queue:</b> Celery 5.x / Redis</span>
+      <span class="chip"><b>Vector Store:</b> ChromaDB</span>
+      <span class="chip"><b>Orchestration:</b> LangChain</span>
+      <span class="chip"><b>Model:</b> GPT-OSS-120B via OpenRouter</span>
+      <span class="chip"><b>Containers:</b> Docker / Compose</span>
+    </div>
+
+    <h3 style="margin:44px 0 14px">Project Structure</h3>
+<pre class="tree"><code>rag-document-qa/
+│
+├── core/
+│   ├── __init__.py          <span class="c"># Bootstraps Celery app configuration</span>
+│   ├── celery.py            <span class="c"># Celery instance definitions</span>
+│   ├── settings.py          <span class="c"># Global Django settings</span>
+│   └── urls.py              <span class="c"># Main routing matrix</span>
+│
+├── documents/
+│   ├── admin.py             <span class="c"># Custom Django Admin with readonly states</span>
+│   ├── models.py            <span class="c"># Database schemas (Document, QAHistory)</span>
+│   ├── tasks.py             <span class="c"># Asynchronous Celery task declarations</span>
+│   ├── rag_service.py       <span class="c"># LangChain, ChromaDB and OpenRouter integration</span>
+│   ├── serializers.py       <span class="c"># DRF serialization configurations</span>
+│   ├── tests.py             <span class="c"># Automated unit test suites</span>
+│   └── views.py             <span class="c"># ViewSets for endpoints</span>
+│
+├── docker-compose.yml       <span class="c"># Multi-container orchestration</span>
+├── Dockerfile               <span class="c"># Web/Worker container blueprint</span>
+└── requirements.txt         <span class="c"># Python dependency manifest</span></code></pre>
+  </div>
+</section>
+
+<section id="install">
+  <div class="container">
+    <h2>Installation &amp; Local Deployment</h2>
+    <p class="sub">Prerequisites: Docker Engine and the Docker Compose V2 plugin.</p>
+
+    <h3>1. Environment Configuration</h3>
+    <p style="color:var(--muted)">Create a <code>.env</code> file next to <code>docker-compose.yml</code> with your OpenRouter key:</p>
+    <div class="pre-wrap"><button class="copy">Copy</button><pre><code>OPENROUTER_API_KEY=your_actual_openrouter_api_key_here</code></pre></div>
+
+    <h3>2. Multi-Container Execution</h3>
+    <p style="color:var(--muted)">Launch the web runtime, Celery worker and Redis server together:</p>
+    <div class="pre-wrap"><button class="copy">Copy</button><pre><code>docker compose up --build</code></pre></div>
+
+    <h3>3. Application Accessibility</h3>
+    <ul style="color:var(--muted)">
+      <li>Django Admin: <a href="http://127.0.0.1:8000/admin/">http://127.0.0.1:8000/admin/</a></li>
+      <li>Browsable REST API: <a href="http://127.0.0.1:8000/api/">http://127.0.0.1:8000/api/</a></li>
+    </ul>
+
+    <h3 style="margin-top:36px">Automated Quality Assurance</h3>
+    <p style="color:var(--muted)">Run the unit tests inside the isolated Docker boundary without touching production storage:</p>
+    <div class="pre-wrap"><button class="copy">Copy</button><pre><code>docker compose exec web python manage.py test documents</code></pre></div>
+<pre><code>Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+
+Ran 2 tests in 0.004s
+
+OK
+Destroying test database for alias 'default'...</code></pre>
+  </div>
+</section>
+
+<section class="alt" id="api">
+  <div class="container">
+    <h2>API Endpoints</h2>
+    <p class="sub">Programmatic gateways for integration with external frontends or analytics tools.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/documents/</code></td><td><span class="method m-get">GET</span></td><td>Lists all uploaded documents, metadata and extraction states.</td></tr>
+          <tr><td><code>/api/documents/</code></td><td><span class="method m-post">POST</span></td><td>Ingests a new <code>.docx</code> file and triggers the async vectorization pipeline.</td></tr>
+          <tr><td><code>/api/documents/&lt;id&gt;/</code></td><td><span class="method m-get">GET</span></td><td>Retrieves the record for a specific file ID.</td></tr>
+          <tr><td><code>/api/qa/</code></td><td><span class="method m-post">POST</span></td><td>Accepts user queries, runs similarity retrieval and returns bounded model responses.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="notes">
+  <div class="container">
+    <h2>Additional Notes</h2>
+    <p class="sub">Things worth knowing before you deploy.</p>
+    <ul class="notes">
+      <li><b>File Support:</b> Only <code>.docx</code> is supported for ingestion. To add PDF or TXT, extend the extraction pipeline in <code>rag_service.py</code>.</li>
+      <li><b>Rate Limits:</b> The free OpenRouter model (<code>openai/gpt-oss-120b:free</code>) is rate-limited. For production, consider a paid model and adjust the RAG service configuration.</li>
+      <li><b>Vector Persistence:</b> ChromaDB persists locally by default. For distributed deployments, use a persistent Docker volume or a cloud-native vector DB such as Pinecone or Weaviate.</li>
+      <li><b>Task Monitoring:</b> Async tasks are monitored via Celery logs. Integrate <code>django-celery-results</code> or check the <code>QAHistory</code> table for status.</li>
+      <li><b>Error Handling:</b> Graceful fallbacks for auth faults, network timeouts and rate limits — errors are logged without crashing the worker.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>Provided as-is for educational and production reference. Modify and distribute according to your organization's policies.</p>
+    <p><a href="https://github.com/YOUR_USERNAME/rag-document-qa" target="_blank" rel="noopener">GitHub Repository</a></p>
+  </div>
+</footer>
+
+<script>
+  // Theme toggle
+  const root = document.documentElement;
+  const btn = document.getElementById('themeBtn');
+  const saved = (function(){ try { return localStorage.getItem('theme'); } catch(e){ return null; } })();
+  if (saved) root.setAttribute('data-theme', saved);
+  function syncIcon(){ btn.textContent = root.getAttribute('data-theme') === 'dark' ? '🌙' : '☀️'; }
+  syncIcon();
+  btn.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch(e){}
+    syncIcon();
+  });
+
+  // Copy buttons
+  document.querySelectorAll('.copy').forEach(b => {
+    b.addEventListener('click', () => {
+      const text = b.parentElement.querySelector('code').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        b.textContent = 'Copied!';
+        setTimeout(() => b.textContent = 'Copy', 1500);
+      });
+    });
+  });
+</script>
+</body>
+</html>
